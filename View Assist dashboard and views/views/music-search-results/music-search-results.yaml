@@ -1,0 +1,217 @@
+type: panel
+title: music-search-results
+path: music-search-results
+icon: mdi:music-note
+cards:
+  - type: custom:button-card
+    template:
+      - variable_template
+      - body_template
+    variables:
+      musicsearchresultsversion: 1.0.0
+      background: ""
+      var_musicplayer_device: |-
+        [[[
+          var assistbid = localStorage.getItem("view_assist_sensor");
+          var musicdevice = hass.states[assistbid].attributes.musicplayer_device;
+          return `${musicdevice}`
+        ]]]   
+      target_automation: |-
+        [[[
+          var assistbid = localStorage.getItem("view_assist_sensor");
+          var target_automation = hass.states[assistbid].attributes.target_automation;
+          return `${target_automation}`
+        ]]]
+      last_said: |-
+        [[[
+          var assistbid = localStorage.getItem("view_assist_sensor");
+          var last_said = hass.states[assistbid].attributes.last_said;
+          return `${last_said}`
+        ]]]
+    styles:
+      grid:
+        - grid-template-areas: |
+            "topspacer"
+            "search"  
+            "results"
+            "bottomspacer"
+        - grid-template-rows: 12% 16% 50% 23%
+        - grid-template-columns: 1fr
+      card:
+        - min-height: 100vh
+        - display: flex
+        - flex-direction: column
+        - background: |-
+            [[[   
+              try {  
+                return `center / cover no-repeat url(${variables.background})`;  
+              } catch (e) {  
+                console.error('Background error:', e);  
+                return 'center / cover no-repeat black';  
+              }  
+            ]]]  
+        - background-size: cover
+      custom_fields:
+        results:
+          - overflow-x: auto
+          - overflow-y: hidden
+          - display: flex
+          - flex-direction: row
+          - align-items: left
+        search:
+          - text-align: left
+          - font-size: 33px
+          - font-weight: bold
+    custom_fields:
+      search: |-
+        [[[
+          return variables.last_said || "Search Results";
+        ]]]
+      results:
+        card:
+          type: horizontal-stack
+          cards: |-
+            [[[  
+
+              function tapAction(track) {
+                return {
+                  action: "call-service",
+                  service: "automation.trigger",
+                  target: {
+                    entity_id: variables.target_automation
+                  },
+                  data: {
+                    variables: {
+                      track_uri: track.uri,
+                      device_id: variables.var_assistsat_entity,
+                      trigger_id: "song-tapped"
+                    }
+                  }
+                };
+              }              
+              
+              try {  
+                console.log('Debug: Starting card generation');  
+                console.log('var_assistsat_entity:', variables.var_assistsat_entity);  
+                console.log('var_musicplayer_device:', variables.var_musicplayer_device);  
+                  
+                if (!variables.var_assistsat_entity) {  
+                  console.error('var_assistsat_entity is undefined');  
+                  return [{  
+                    type: "markdown",  
+                    content: "Error: var_assistsat_entity not available"  
+                  }];  
+                }  
+                  
+                if (!hass.states[variables.var_assistsat_entity]) {  
+                  console.error('Entity not found:', variables.var_assistsat_entity);  
+                  return [{  
+                    type: "markdown",  
+                    content: `Error: Entity ${variables.var_assistsat_entity} not found`  
+                  }];  
+                }  
+                  
+                const searchResults = hass.states[variables.var_assistsat_entity].attributes.music_search_results; 
+                console.log('Search results:', searchResults);  
+
+                if (!searchResults || !searchResults.results) {
+                  return [{
+                    type: "markdown",
+                    content: "No search results available"
+                  }];
+                }
+
+                let searchParsedResults;
+                try {
+                  searchParsedResults = JSON.parse(searchResults.results);
+                } catch (err) {
+                  console.error("JSON parse error:", err);
+                  return [{
+                    type: "markdown",
+                    content: "Error parsing search results"
+                  }];
+                }
+
+                return searchParsedResults.tracks.map((track, index) => {  
+                  try {  
+                    console.log(`Processing track ${index}:`, track);  
+                      
+                    const artistName = track?.artists?.[0]?.name || "Unknown Artist";
+                    const trackTitle = track?.name || "Unknown Title";
+                    const image = track?.image || "/local/images/placeholder-album.png";
+
+                    return {
+                      type: "vertical-stack",
+                      cards: [
+                        {
+                          type: "picture",
+                          image: image,
+                          image_error: "/local/images/placeholder-album.png",
+                          alt: `${trackTitle} by ${artistName}`,
+                          tap_action: tapAction(track),
+                          card_mod: {  
+                            style: `  
+                              ha-card {  
+                                border-radius: 0.5rem;  
+                                overflow: hidden;  
+                                aspect-ratio: 1;  
+                                min-width: 220px;  
+                                max-width: 220px;  
+                              }  
+                            `  
+                          }  
+                        },
+                        {
+                          type: "custom:button-card",
+                          name: `<div style='font-weight:bold'>${index + 1}. ${trackTitle}</div><div>${artistName}</div>`,
+                          styles: {  
+                            name: [  
+                              "- font-size: 14px",  
+                              "- text-align: center",  
+                              "- white-space: normal",  
+                              "- line-height: 1.2",  
+                              "- padding: 8px" 
+                            ],  
+                            card: [  
+                              "- background: rgba(0,0,0,0.6)",  
+                              "- border-radius: 0.5rem",  
+                              "- min-width: 200px",  
+                              "- max-width: 200px",  
+                              "- color: white"  
+                            ]  
+                          },  
+                          tap_action: tapAction(track)
+                        }
+                      ]
+                    };
+
+                    
+                      
+
+                  } catch (trackError) {  
+                    console.error(`Error processing track ${index}:`, trackError);  
+                    return {  
+                      type: "markdown",  
+                      content: `Error processing track ${index}: ${trackError.message}`  
+                    };  
+                  }  
+                });  
+              } catch (e) {  
+                console.error('Main template error:', e);  
+                return [{  
+                  type: "markdown",  
+                  content: `Template Error: ${e.message}`,  
+                  card_mod: {  
+                    style: `  
+                      ha-card {  
+                        background: rgba(255,0,0,0.2);  
+                        color: white;  
+                        padding: 2rem;  
+                        border-radius: 0.5rem;  
+                        text-align: center;  
+                      }  
+                    `  
+                  }  
+                }];  
+              }  
+            ]]]

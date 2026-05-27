@@ -94,57 +94,93 @@ actions:
           searchalbumsbyartist_found: Here are albums by {artist}
           searchalbumsbyartist_not_found: I was unable to find any music for {artist}
 
-- choose:
-  - conditions:
-      - condition: template
-        value_template: "{{ trigger_id and trigger_id == 'tapped' }}"
-    sequence:
-      - action: view_assist.set_state
-        target:
-          entity_id: '{{ target_satellite_device }}'
-        data:
-          mode: music
-          title: ''
-          message_font_size: 5vw
-      - action: music_assistant.play_media
-        continue_on_error: true
-        target:
-          entity_id: '{{ target_musicplayer_device }}'
-        data:
-          #media_type: track
-          enqueue: replace
-          media_id: '{{ play_uri }}'
-      - delay: "00:00:01.0"
-      - action: view_assist.navigate
-        data:
-          device: '{{ target_satellite_device }}'
-          path: '{{ music_view_path }}'
+    responses_localized: '{{ translations[language][''responses''] }}'
+
+- if:
+  - alias: "If the automation is being called by tapping the view"
+    condition: template
+    value_template: "{{ trigger_id and trigger_id == 'tapped' }}"
+  then:
+
+    - action: view_assist.set_state
+      target:
+        entity_id: '{{ target_satellite_device }}'
+      data:
+        mode: music
+        title: ''
+        message_font_size: 5vw
+
+    - action: music_assistant.play_media
+      continue_on_error: true
+      target:
+        entity_id: '{{ target_musicplayer_device }}'
+      data:
+        enqueue: replace
+        media_id: '{{ play_uri }}'
+
+    - delay: "00:00:01.0"
+
+    - action: view_assist.navigate
+      data:
+        device: '{{ target_satellite_device }}'
+        path: '{{ music_view_path }}'
+  else:
+
+    - action: system_log.write
+      data:
+        message: "automations entity_id: {{ this.entity_id }}"
+        level: debug
 
 
-  - conditions:
-    - condition: trigger
-      id:
-      - searchsongsbyartist
-    sequence:
+    - choose:
+      - conditions:
+        - condition: trigger
+          id:
+          - searchsongsbyartist
+        sequence:
+
+        - variables:
+            search_command_variable: '{artist}'
+            search_media_type: track
+            search_media_query: '{{ trigger.slots.artist  | trim }}'
+            search_media_name: '{{ search_media_query }}'
+            search_media_artist: '{{ search_media_query }}'
+            search_results_type: tracks
+            response_variable_found: searchsongsbyartist_found
+            response_variable_not_found: searchsongsbyartist_not_found
+
+      - conditions:
+        - condition: trigger
+          id:
+          - searchalbumsbyartist
+        sequence:
+
+        - variables:
+            search_command_variable: '{artist}'
+            search_media_type: album
+            search_media_query: '{{ trigger.slots.artist  | trim }}'
+            search_media_name: '{{ search_media_query }}'
+            search_media_artist: '{{ search_media_query }}'
+            search_results_type: albums
+            response_variable_found: searchalbumsbyartist_found
+            response_variable_not_found: searchalbumsbyartist_not_found
+
+
     - action: music_assistant.search
       data:
         limit: "{{ num_search_results }}"
         config_entry_id: '{{ ma_instance }}'
         media_type:
-        - track
-        name: '{{ trigger.slots.artist | trim }}'
-        artist: '{{ trigger.slots.artist | trim }}'
+        - '{{ search_media_type }}'
+        name: '{{ search_media_name }}'
+        artist: '{{ search_media_artist }}'
       response_variable: found_results
     - alias: Did we find songs by artist?
       if:
       - condition: template
-        value_template: '{{found_results[''tracks''] | count>0}}'
+        value_template: '{{found_results[search_results_type] | count>0}}'
         alias: We found an artist!
       then:
-      - action: system_log.write
-        data:
-          message: "automations entity_id: {{ this.entity_id }}"
-          level: debug
       - action: view_assist.set_state
         target:
           entity_id: '{{ target_satellite_device }}'
@@ -153,8 +189,8 @@ actions:
           title: ''
           message_font_size: 5vw
           music_search_results:
-            type: "tracks"
-            query: "{{ trigger.slots.artist }}"
+            type: "{{ search_results_type }}"
+            query: "{{ search_media_query }}"
             results: "{{ found_results | tojson }}"
           target_automation: "{{ this.entity_id }}"
       - action: view_assist.navigate
@@ -166,8 +202,8 @@ actions:
           value_template: '{{ target_use_announce is not false }}'
         then:
         - variables:
-            conversation_response: '{{ translations[language][''responses''][''searchsongsbyartist_found''].replace("{artist}",
-              found_results.tracks.0.artists.0.name)}}'
+            conversation_response: '{{ responses_localized[response_variable_found].replace(search_command_variable,
+              search_media_query)}}'
         - set_conversation_response: '{{ conversation_response }}'
         - action: view_assist.set_state
           target:
@@ -182,8 +218,8 @@ actions:
           value_template: '{{ target_use_announce is not false }}'
         then:
         - variables:
-            conversation_response: '{{ translations[language][''responses''][''searchsongsbyartist_not_found''].replace("{artist}",
-              trigger.slots.artist)}}'
+            conversation_response: '{{ responses_localized[response_variable_not_found].replace(search_command_variable,
+              search_media_query)}}'
         - set_conversation_response: '{{ conversation_response }}'
         - action: view_assist.set_state
           target:
@@ -193,77 +229,3 @@ actions:
         else:
         - set_conversation_response: ''
 
-
-
-
-  - conditions:
-    - condition: trigger
-      id:
-      - searchalbumsbyartist
-    sequence:
-    - action: music_assistant.search
-      data:
-        limit: "{{ num_search_results }}"
-        config_entry_id: '{{ ma_instance }}'
-        media_type:
-        - album
-        name: '{{ trigger.slots.artist  | trim }}'
-        artist: "{{ trigger.slots.artist | trim }}"
-      response_variable: found_results
-    - alias: Did we find albums by artist?
-      if:
-      - condition: template
-        value_template: '{{found_results[''albums''] | count>0}}'
-        alias: We found an album!
-      then:
-      - action: system_log.write
-        data:
-          message: "automations entity_id: {{ this.entity_id }}"
-          level: debug
-      - action: view_assist.set_state
-        target:
-          entity_id: '{{ target_satellite_device }}'
-        data:
-          mode: music-search
-          title: ''
-          message_font_size: 5vw
-          music_search_results:
-            type: "albums"
-            query: "{{ trigger.slots.artist }}"
-            results: "{{ found_results | tojson }}"
-          target_automation: "{{ this.entity_id }}"
-      - action: view_assist.navigate
-        data:
-          device: '{{ target_satellite_device }}'
-          path: '{{ view_path }}'
-      - if:
-        - condition: template
-          value_template: '{{ target_use_announce is not false }}'
-        then:
-        - variables:
-            conversation_response: '{{ translations[language][''responses''][''searchalbumsbyartist_found''].replace("{artist}",
-              found_results.albums.0.artists.0.name)}}'
-        - set_conversation_response: '{{ conversation_response }}'
-        - action: view_assist.set_state
-          target:
-            entity_id: '{{ target_satellite_device }}'
-          data:
-            last_said: '{{ conversation_response }}'
-        else:
-        - set_conversation_response: ''
-      else:
-      - if:
-        - condition: template
-          value_template: '{{ target_use_announce is not false }}'
-        then:
-        - variables:
-            conversation_response: '{{ translations[language][''responses''][''searchalbumsbyartist_not_found''].replace("{artist}",
-              trigger.slots.artist)}}'
-        - set_conversation_response: '{{ conversation_response }}'
-        - action: view_assist.set_state
-          target:
-            entity_id: '{{ target_satellite_device }}'
-          data:
-            last_said: '{{ conversation_response }}'
-        else:
-        - set_conversation_response: ''

@@ -143,6 +143,9 @@ cards:
                   case "artists":
                     items = searchParsedResults.artists;
                     break;
+                  case "playlists":
+                    items = searchParsedResults.playlists;
+                    break;
                 }
 
                 return items.map((item, index) => {  
@@ -150,8 +153,8 @@ cards:
                     console.log(`Processing item ${index}:`, item);  
                       
                     const itemTitle = item?.name || "Unknown Title";
-                    const itemSubtitle = searchResults.type == "artists" ? "" : item?.artists?.[0]?.name || "Unknown Artist";
-                    const itemAlt = searchResults.type == "artists" ? itemTitle : itemTitle.concat(" by ", itemSubtitle);
+                    const itemSubtitle = (searchResults.type == "artists" || searchResults.type == "playlists") ? "" : item?.artists?.[0]?.name || "Unknown Artist";
+                    const itemAlt = (searchResults.type == "artists" || searchResults.type == "playlists") ? itemTitle : itemTitle.concat(" by ", itemSubtitle);
                     const itemImage = item?.image || "/local/images/placeholder-album.png";
                     const itemUri = item?.uri || "NO_URI";
 

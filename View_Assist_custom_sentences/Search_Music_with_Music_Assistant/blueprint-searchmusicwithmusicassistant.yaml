@@ -64,6 +64,10 @@ blueprint:
       name: Search Artists by Name
       description: The command to trigger action to search for artists by name
       default: show [me] artists (named|called) {artist}
+    search_playlists_by_playlist_command:
+      name: Search Playlists by Name
+      description: The command to trigger action to search for playlists by name
+      default: show [me] playlists (named|called) {playlist}
 
 alias: View Assist - Search Music with Music Assistant
 description: Search music using Music Assistant
@@ -83,6 +87,9 @@ trigger:
 - trigger: conversation
   command: !input search_artists_by_artist_command
   id: searchartistsbyartist
+- trigger: conversation
+  command: !input search_playlists_by_playlist_command
+  id: searchplaylistsbyplaylist
 
 conditions: []
 actions:
@@ -120,6 +127,8 @@ actions:
           searchalbumsbyalbum_not_found: I was unable to find any matches for {album}
           searchartistsbyartist_found: Here are artists matching {artist}
           searchartistsbyartist_not_found: I was unable to find any matches for {artist}
+          searchplaylistsbyplaylist_found: Here are playlists matching {playlist}
+          searchplaylistsbyplaylist_not_found: I was unable to find any matches for {playlist}
 
     responses_localized: '{{ translations[language][''responses''] }}'
 
@@ -230,6 +239,20 @@ actions:
             search_results_type: artists
             response_variable_found: searchartistsbyartist_found
             response_variable_not_found: searchartistsbyartist_not_found
+      - conditions:
+        - condition: trigger
+          id:
+          - searchplaylistsbyplaylist
+        sequence:
+        - variables:
+            search_command_variable: '{playlist}'
+            search_media_type: playlist
+            search_media_query: '{{ trigger.slots.playlist  | trim }}'
+            search_media_name: '{{ search_media_query }}'
+            search_media_artist: '{{ " " | trim }}'
+            search_results_type: playlists
+            response_variable_found: searchplaylistsbyplaylist_found
+            response_variable_not_found: searchplaylistsbyplaylist_not_found
 
 
     - action: music_assistant.search

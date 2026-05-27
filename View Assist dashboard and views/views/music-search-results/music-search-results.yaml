@@ -73,7 +73,7 @@ cards:
           cards: |-
             [[[  
 
-              function tapAction(track) {
+              function tapAction(playUri) {
                 return {
                   action: "call-service",
                   service: "automation.trigger",
@@ -82,9 +82,9 @@ cards:
                   },
                   data: {
                     variables: {
-                      track_uri: track.uri,
+                      play_uri: playUri,
                       device_id: variables.var_assistsat_entity,
-                      trigger_id: "song-tapped"
+                      trigger_id: "tapped"
                     }
                   }
                 };
@@ -132,23 +132,35 @@ cards:
                   }];
                 }
 
-                return searchParsedResults.tracks.map((track, index) => {  
+                let items;
+                switch(searchResults.type){
+                  case "tracks":
+                    items = searchParsedResults.tracks;
+                    break;
+                  case "albums":
+                    items = searchParsedResults.albums;
+                    break;
+                }
+
+                return items.map((item, index) => {  
                   try {  
-                    console.log(`Processing track ${index}:`, track);  
+                    console.log(`Processing item ${index}:`, item);  
                       
-                    const artistName = track?.artists?.[0]?.name || "Unknown Artist";
-                    const trackTitle = track?.name || "Unknown Title";
-                    const image = track?.image || "/local/images/placeholder-album.png";
+                    const itemTitle = item?.name || "Unknown Title";
+                    const itemSubtitle = item?.artists?.[0]?.name || "Unknown Artist";
+                    const itemAlt = itemTitle.concat(" by ", itemSubtitle);
+                    const itemImage = item?.image || "/local/images/placeholder-album.png";
+                    const itemUri = item?.uri || "NO_URI";
 
                     return {
                       type: "vertical-stack",
                       cards: [
                         {
                           type: "picture",
-                          image: image,
+                          image: itemImage,
                           image_error: "/local/images/placeholder-album.png",
-                          alt: `${trackTitle} by ${artistName}`,
-                          tap_action: tapAction(track),
+                          alt: itemAlt,
+                          tap_action: tapAction(itemUri),
                           card_mod: {  
                             style: `  
                               ha-card {  
@@ -163,7 +175,7 @@ cards:
                         },
                         {
                           type: "custom:button-card",
-                          name: `<div style='font-weight:bold'>${index + 1}. ${trackTitle}</div><div>${artistName}</div>`,
+                          name: `<div style='font-weight:bold'>${index + 1}. ${itemTitle}</div><div>${itemSubtitle}</div>`,
                           styles: {  
                             name: [  
                               "- font-size: 14px",  
@@ -180,7 +192,7 @@ cards:
                               "- color: white"  
                             ]  
                           },  
-                          tap_action: tapAction(track)
+                          tap_action: tapAction(itemUri)
                         }
                       ]
                     };
@@ -188,11 +200,11 @@ cards:
                     
                       
 
-                  } catch (trackError) {  
-                    console.error(`Error processing track ${index}:`, trackError);  
+                  } catch (itemError) {  
+                    console.error(`Error processing item ${index}:`, itemError);  
                     return {  
                       type: "markdown",  
-                      content: `Error processing track ${index}: ${trackError.message}`  
+                      content: `Error processing item ${index}: ${itemError.message}`  
                     };  
                   }  
                 });  

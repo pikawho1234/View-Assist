@@ -48,10 +48,22 @@ blueprint:
       name: Search Songs by Artist
       description: The command to trigger action to search for songs by an artist
       default: show [me] songs by {artist}
+    search_songs_by_song_command:
+      name: Search Songs by Name
+      description: The command to trigger action to search for songs by name
+      default: show [me] songs (named|called) {song}
     search_albums_by_artist_command:
       name: Search Albums by Artist
       description: The command to trigger action to search for albums by an artist
       default: show [me] albums by {artist}
+    search_albums_by_album_command:
+      name: Search Albums by Name
+      description: The command to trigger action to search for albums by name
+      default: show [me] albums (named|called) {album}
+    search_artists_by_artist_command:
+      name: Search Artists by Name
+      description: The command to trigger action to search for artists by name
+      default: show [me] artists (named|called) {artist}
 
 alias: View Assist - Search Music with Music Assistant
 description: Search music using Music Assistant
@@ -60,8 +72,17 @@ trigger:
   command: !input search_songs_by_artist_command
   id: searchsongsbyartist
 - trigger: conversation
+  command: !input search_songs_by_song_command
+  id: searchsongsbysong
+- trigger: conversation
   command: !input search_albums_by_artist_command
   id: searchalbumsbyartist
+- trigger: conversation
+  command: !input search_albums_by_album_command
+  id: searchalbumsbyalbum
+- trigger: conversation
+  command: !input search_artists_by_artist_command
+  id: searchartistsbyartist
 
 conditions: []
 actions:
@@ -89,10 +110,16 @@ actions:
     translations:
       en:
         responses:
-          searchsongsbyartist_found: Here are songs by {artist}
-          searchsongsbyartist_not_found: I was unable to find any music for {artist}
-          searchalbumsbyartist_found: Here are albums by {artist}
-          searchalbumsbyartist_not_found: I was unable to find any music for {artist}
+          searchsongsbyartist_found: Here are songs matching artist {artist}
+          searchsongsbyartist_not_found: I was unable to find any matches for {artist}
+          searchsongsbysong_found: Here are songs matching {song}
+          searchsongsbysong_not_found: I was unable to find any matches for {song}
+          searchalbumsbyartist_found: Here are albums matching artist {artist}
+          searchalbumsbyartist_not_found: I was unable to find any matches for {artist}
+          searchalbumsbyalbum_found: Here are albums matching {album}
+          searchalbumsbyalbum_not_found: I was unable to find any matches for {album}
+          searchartistsbyartist_found: Here are artists matching {artist}
+          searchartistsbyartist_not_found: I was unable to find any matches for {artist}
 
     responses_localized: '{{ translations[language][''responses''] }}'
 
@@ -138,7 +165,6 @@ actions:
           id:
           - searchsongsbyartist
         sequence:
-
         - variables:
             search_command_variable: '{artist}'
             search_media_type: track
@@ -148,13 +174,25 @@ actions:
             search_results_type: tracks
             response_variable_found: searchsongsbyartist_found
             response_variable_not_found: searchsongsbyartist_not_found
-
+      - conditions:
+        - condition: trigger
+          id:
+          - searchsongsbysong
+        sequence:
+        - variables:
+            search_command_variable: '{song}'
+            search_media_type: track
+            search_media_query: '{{ trigger.slots.song  | trim }}'
+            search_media_name: '{{ search_media_query }}'
+            search_media_artist: '{{ " " | trim }}'
+            search_results_type: tracks
+            response_variable_found: searchsongsbysong_found
+            response_variable_not_found: searchsongsbysong_not_found
       - conditions:
         - condition: trigger
           id:
           - searchalbumsbyartist
         sequence:
-
         - variables:
             search_command_variable: '{artist}'
             search_media_type: album
@@ -164,6 +202,34 @@ actions:
             search_results_type: albums
             response_variable_found: searchalbumsbyartist_found
             response_variable_not_found: searchalbumsbyartist_not_found
+      - conditions:
+        - condition: trigger
+          id:
+          - searchalbumsbyalbum
+        sequence:
+        - variables:
+            search_command_variable: '{album}'
+            search_media_type: album
+            search_media_query: '{{ trigger.slots.album  | trim }}'
+            search_media_name: '{{ search_media_query }}'
+            search_media_artist: '{{ " " | trim }}'
+            search_results_type: albums
+            response_variable_found: searchalbumsbyalbum_found
+            response_variable_not_found: searchalbumsbyalbum_not_found
+      - conditions:
+        - condition: trigger
+          id:
+          - searchartistsbyartist
+        sequence:
+        - variables:
+            search_command_variable: '{artist}'
+            search_media_type: artist
+            search_media_query: '{{ trigger.slots.artist  | trim }}'
+            search_media_name: '{{ search_media_query }}'
+            search_media_artist: '{{ search_media_query }}'
+            search_results_type: artists
+            response_variable_found: searchartistsbyartist_found
+            response_variable_not_found: searchartistsbyartist_not_found
 
 
     - action: music_assistant.search
